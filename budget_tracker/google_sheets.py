@@ -19,6 +19,25 @@ class SheetsManager:
         self.index_sheet_id = index_sheet_id
         self.client = self._authorize()
         self.index_sheet = self.client.open_by_key(index_sheet_id).sheet1
+        self.invite_codes: dict[str, str] = {}
+        self._load_invite_codes()
+
+    # ----- Invite codes -----
+    def _load_invite_codes(self) -> None:
+        """Read all invite codes from the index sheet into memory."""
+        records = self.index_sheet.get_all_records()
+        self.invite_codes = {
+            str(rec["invite_code"]).upper(): rec.get("sheet_id") or rec.get("sheetId")
+            for rec in records
+            if rec.get("invite_code")
+        }
+
+    def _generate_unique_code(self) -> str:
+        """Generate an invite code that doesn't exist yet."""
+        while True:
+            code = uuid.uuid4().hex[:6].upper()
+            if code not in self.invite_codes:
+                return code
 
     def _authorize(self) -> gspread.Client:
         try:
@@ -33,7 +52,7 @@ class SheetsManager:
     # ----- Family management -----
     def create_family(self, creator_id: int, creator_name: str) -> tuple[str, str]:
         family_id = str(uuid.uuid4())
-        invite_code = uuid.uuid4().hex[:6].upper()
+        invite_code = self._generate_unique_code()
         spreadsheet = self.client.create(f"FamilyBudget_{family_id}")
         expenses = spreadsheet.add_worksheet("Expenses", rows=1, cols=6)
         meta = spreadsheet.add_worksheet("Meta", rows=2, cols=2)
@@ -57,14 +76,12 @@ class SheetsManager:
 
         # register in index sheet
         self.index_sheet.append_row([family_id, invite_code, spreadsheet.id])
+        self.invite_codes[invite_code] = spreadsheet.id
         return spreadsheet.id, invite_code
 
     def find_family_by_invite(self, invite_code: str) -> Optional[str]:
-        records = self.index_sheet.get_all_records()
-        for record in records:
-            if record.get("invite_code") == invite_code:
-                return record.get("sheet_id") or record.get("sheetId")
-        return None
+        """Return the sheet ID for the given invite code if known."""
+        return self.invite_codes.get(invite_code.upper())
 
     def add_member(self, sheet_id: str, user_id: int):
         sheet = self.client.open_by_key(sheet_id)

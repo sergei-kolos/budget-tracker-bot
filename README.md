@@ -9,6 +9,9 @@ This project implements a Telegram bot for managing a family budget. The bot sto
 - Add expenses via an interactive conversation
 - View a monthly report grouped by categories, users, and currencies
 
+Invite codes are cached locally on startup so that each generated code is
+unique across all families.
+
 The bot is built with `python-telegram-bot` and uses the Google Sheets API via `gspread`.
 
 ## Running the Bot
