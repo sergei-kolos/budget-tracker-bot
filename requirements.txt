@@ -1,0 +1,5 @@
+python-telegram-bot>=20
+gspread
+google-auth
+google-auth-oauthlib
+python-dateutil
